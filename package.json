@@ -1,0 +1,19 @@
+{
+  "name": "wilson-geoguard",
+  "version": "1.0.0",
+  "description": "Desktop geolocation, VPN/DNS/WebRTC leak & anti-spoofing diagnostic guard",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server/cli.js --gui",
+    "scan": "node src/server/cli.js --scan",
+    "scan:json": "node src/server/cli.js --scan --json",
+    "align": "node src/server/switcherCli.js --auto",
+    "align:us": "node src/server/switcherCli.js --us",
+    "revert": "node src/server/switcherCli.js --revert",
+    "align:status": "node src/server/switcherCli.js --status",
+    "test": "node --test test/verification.test.js"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

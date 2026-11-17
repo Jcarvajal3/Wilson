@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WilsonGeoGuard — Auditoría Anti-Spoofing y Ubicación Geográfica Desktop</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- HEADER -->
+    <header class="topbar card">
+      <div class="brand-block">
+        <div class="brand-title-row">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <h1>WilsonGeoGuard</h1>
+          <span id="channelBadge" class="badge badge-neutral" title="Nivel de privilegios del proceso">
+            Usuario / Solo lectura
+          </span>
+        </div>
+        <p class="brand-subtitle">Auditoría Anti-Spoofing y Ubicación Geográfica Desktop</p>
+      </div>
+
+      <div class="header-controls">
+        <div class="control-group">
+          <label for="targetSelect" class="control-label">Objetivo</label>
+          <select id="targetSelect" class="select-input" aria-label="Objetivo de auditoría">
+            <option value="claude">Claude</option>
+            <option value="chatgpt">ChatGPT</option>
+            <option value="custom">Proyecto Propio</option>
+          </select>
+        </div>
+
+        <div id="customDomainsWrap" class="control-group custom-domains-wrap hidden">
+          <label for="customDomainsInput" class="control-label">Dominios objetivo (coma)</label>
+          <input
+            id="customDomainsInput"
+            type="text"
+            class="text-input mono"
+            placeholder="api.ipify.org, cloudflare.com"
+            autocomplete="off"
+          />
+        </div>
+
+        <button
+          id="privacyBtn"
+          type="button"
+          class="icon-btn"
+          aria-pressed="false"
+          title="Enmascarar IP, ASN, hostname y direcciones locales"
+        >
+          <span class="eye-glyph" aria-hidden="true">👁</span>
+          <span id="privacyLabel" class="btn-text-sm">Privacidad: OFF</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- STATUS / TOAST BANNER -->
+    <div id="statusBar" class="status-bar hidden" role="status" aria-live="polite"></div>
+
+    <!-- TARJETA DE VEREDICTO GEOGRÁFICO ANTI-HACKEO -->
+    <section class="card verdict-card" aria-labelledby="verdictHeading">
+      <div class="card-header">
+        <div>
+          <h2 id="verdictHeading">Veredicto Geográfico Anti-Hackeo</h2>
+          <span id="scanTimestamp" class="meta-text mono">Sin escaneo ejecutado</span>
+        </div>
+        <div class="risk-meter-wrap">
+          <div class="risk-meter-head">
+            <span class="risk-label">Riesgo de Evasión</span>
+            <span id="riskBadge" class="badge badge-neutral mono">0% · LOW</span>
+          </div>
+          <div class="risk-track" aria-hidden="true">
+            <div id="riskFill" class="risk-fill risk-low" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="verdictBanner" class="verdict-banner verdict-neutral">
+        <span id="verdictIcon" class="verdict-state-icon">—</span>
+        <div class="verdict-banner-text">
+          <div id="verdictTitle" class="verdict-title">ESPERANDO AUDITORÍA INICIAL</div>
+          <div id="verdictSummary" class="verdict-summary">
+            Pulsa <strong class="mono">scan</strong> para correlacionar IP pública, zona horaria del sistema, STUN/UDP, IPv6 y DNS.
+          </div>
+        </div>
+      </div>
+
+      <div class="verdict-columns">
+        <div class="verdict-col">
+          <div class="col-caption">Ubicación Física Estimada</div>
+          <div id="colEstimated" class="col-value">
+            <span class="flag-lg">—</span>
+            <div>
+              <div class="country-name">Pendiente</div>
+              <div class="country-iso mono">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="verdict-col">
+          <div class="col-caption">País Aparentado por IP</div>
+          <div id="colDeclaredIp" class="col-value">
+            <span class="flag-lg">—</span>
+            <div>
+              <div class="country-name">Pendiente</div>
+              <div class="country-iso mono">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="verdict-col">
+          <div class="col-caption">País Inferido del Sistema (OS)</div>
+          <div id="colSystemOs" class="col-value">
+            <span class="flag-lg">—</span>
+            <div>
+              <div class="country-name">Pendiente</div>
+              <div class="country-iso mono">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="verdict-col">
+          <div class="col-caption">Fuga Detectada (STUN/IPv6/DNS)</div>
+          <div id="colLeakedReal" class="col-value">
+            <span class="flag-lg">—</span>
+            <div>
+              <div class="country-name">Sin fuga directa</div>
+              <div class="country-iso mono">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="discrepancies-section">
+        <div class="subsection-head">
+          <h3>Discordancias Detectadas</h3>
+          <span id="discrepancyCount" class="badge badge-neutral mono">0</span>
+        </div>
+        <div id="discrepanciesList" class="discrepancies-list">
+          <div class="empty-state">No hay discordancias registradas todavía.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SELECTOR DE REGIÓN DE REFERENCIA -->
+    <section class="card region-card" aria-labelledby="regionHeading">
+      <div class="card-header">
+        <div>
+          <h2 id="regionHeading">Región de Referencia Esperada</h2>
+          <span id="selectedRegionLabel" class="meta-text">
+            Sin región fija (auditoría por coherencia interna)
+          </span>
+        </div>
+        <div class="region-search-wrap">
+          <input
+            id="regionSearchInput"
+            type="text"
+            class="text-input region-search-input"
+            placeholder="Buscar país, ISO o alias (ej: España, ES, uk, usa)..."
+            autocomplete="off"
+          />
+          <button
+            id="clearRegionBtn"
+            type="button"
+            class="btn-ghost btn-clear"
+            title="Deseleccionar región esperada"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <div id="regionSearchResults" class="region-dropdown hidden" role="listbox" aria-label="Resultados de países"></div>
+
+      <div id="regionChips" class="region-chips" role="group" aria-label="Países principales"></div>
+    </section>
+
+    <!-- GRID PRINCIPAL: SISTEMA + COMPROBACIÓN DE RED -->
+    <div class="panels-grid">
+      <!-- TARJETA SISTEMA -->
+      <section class="card panel-card" aria-labelledby="systemHeading">
+        <div class="card-header">
+          <div>
+            <h2 id="systemHeading">Sistema</h2>
+            <span id="systemHostMeta" class="meta-text mono">Host: —</span>
+          </div>
+          <span id="systemSummaryBadge" class="badge badge-neutral mono">—</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th>Campo</th>
+                <th>Esperado</th>
+                <th>Actual</th>
+                <th class="col-state">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="systemTableBody">
+              <tr>
+                <td colspan="4" class="empty-row">Ejecuta un escaneo para inspeccionar idioma, zona horaria y UTC del sistema.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="os-switcher-bar">
+          <div class="os-switcher-title">Alineador de Ubicación del Sistema (OS Switcher)</div>
+          <div class="os-switcher-controls">
+            <select id="osAlignSelect" class="select-input" aria-label="Perfil de alineación del sistema">
+              <option value="auto-ip">Auto (Según IP Pública)</option>
+              <option value="us-ny">US · Este (America/New_York)</option>
+              <option value="us-chi">US · Centro (America/Chicago)</option>
+              <option value="us-den">US · Montaña (America/Denver)</option>
+              <option value="us-la">US · Pacífico (America/Los_Angeles)</option>
+              <option value="expected">Según Región Esperada</option>
+            </select>
+
+            <button id="alignOsBtn" type="button" class="btn-primary os-align-btn">
+              Alinear OS con IP / Región
+            </button>
+
+            <button id="revertOsBtn" type="button" class="btn-secondary" disabled>
+              Revertir OS Original
+            </button>
+          </div>
+          <div id="osSwitcherLine" class="os-switcher-line mono">
+            Sin backup original guardado (se creará automáticamente al alinear).
+          </div>
+        </div>
+      </section>
+
+      <!-- TARJETA COMPROBACIÓN DE RED -->
+      <section class="card panel-card" aria-labelledby="networkHeading">
+        <div class="card-header">
+          <div>
+            <h2 id="networkHeading">Comprobación de Red</h2>
+            <span id="targetMeta" class="meta-text mono">Objetivo: Claude</span>
+          </div>
+          <span id="networkSummaryBadge" class="badge badge-neutral mono">—</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th>Campo</th>
+                <th>Esperado</th>
+                <th>Actual</th>
+                <th class="col-state">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="networkTableBody">
+              <tr>
+                <td colspan="4" class="empty-row">Ejecuta un escaneo para comprobar VPN, salida IP, línea, DNS, IPv6, UDP y nodo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Barra de acciones idéntica a NetworkPanel de ClaudeWilson -->
+        <div class="network-action-bar">
+          <button id="scanBtn" type="button" class="btn-primary mono">
+            scan
+          </button>
+
+          <label class="checkbox-label">
+            <input id="autoFixCheckbox" type="checkbox" checked />
+            <span>Auto-corregir al detectar VPN (desactivar IPv6 y limpiar proxy)</span>
+          </label>
+
+          <input
+            id="vpnStatusReadonly"
+            type="text"
+            class="text-input readonly-vpn mono"
+            value="VPN no establecida"
+            readonly
+            aria-label="Paquete o servicio VPN detectado"
+          />
+
+          <button id="fixBtn" type="button" class="btn-secondary" title="Ejecutar corrección básica VPN y re-escanear">
+            Corregir
+          </button>
+
+          <button id="openVpnSettingsBtn" type="button" class="btn-secondary">
+            Configuración VPN
+          </button>
+        </div>
+
+        <!-- Bloque fixLine -->
+        <div id="fixLine" class="fix-line hidden"></div>
+
+        <!-- Bloque de registro compacto de diagnóstico -->
+        <div class="diag-block">
+          <div class="diag-title">Registro Compacto de Diagnóstico</div>
+          <div id="diagLog" class="diag-grid mono">
+            <div class="diag-item">
+              <span class="diag-key">IP Flip / Historial:</span>
+              <span id="diagIpFlip" class="diag-val">Sin historial</span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-key">Detalles STUN / UDP:</span>
+              <span id="diagStun" class="diag-val">—</span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-key">DNS / Resolver:</span>
+              <span id="diagDns" class="diag-val">—</span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-key">Reglas de Nodo:</span>
+              <span id="diagNode" class="diag-val">—</span>
+            </div>
+            <div class="diag-item diag-item-wide">
+              <span class="diag-key">IPv6 Locales Globales:</span>
+              <span id="diagIpv6" class="diag-val">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- TARJETA DE NOTAS -->
+    <section class="card notes-card" aria-labelledby="notesHeading">
+      <div class="card-header">
+        <h2 id="notesHeading">Notas Operativas</h2>
+        <span class="meta-text">Referencia rápida de interpretación</span>
+      </div>
+      <ol id="notesList" class="notes-list"></ol>
+    </section>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
